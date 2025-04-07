@@ -60,3 +60,21 @@ pip3 install ~/github/tonygilkerson/rptgen/dist/rptgen-0.1.0-py3-none-any.whl --
 # In a shell with no active python venv
 rptgen
 ```
+
+### run
+
+```sh
+# Redact
+python3 src/main.py redact redact \
+  -i .temp/rptwrk/thedaily02.md \
+  -r .temp/keep/replacements.yaml 
+  
+
+# go to `temp/rpt-scratch` and create the generated-report(redacted).md
+
+
+python src/main.py  unredact \
+  --target-report-redacted .temp/rptwrk/target-report\(redacted\).md \
+  -r .temp/keep/replacements.yaml 
+  
+```

@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    
+      {
+          "name": "Python: Current File with args",
+          "type": "python",
+          "request": "launch",
+          "program": "${file}",
+          "console": "integratedTerminal",
+          "args": [
+              "-s", ".temp/rptwrk/MLV072-msr-01-2025-tgilkerson.md",
+              "-s", ".temp/rptwrk/sample2.md",
+              "-i", ".temp/rptwrk/thedaily-2025-02.md",
+              "-r", ".temp/keep/replacements.yaml"
+          ]
+      }
+  ]
+}

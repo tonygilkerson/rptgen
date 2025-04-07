@@ -4,106 +4,155 @@ import sys
 import yaml
 import re
 
-def remove_markdown_links(mod_file):
+def unredact(content: str, replacements: dict) -> str:
     """
-    Reads the given file, replaces all Markdown links of the format [linkname](URL)
-    with just the linkname, and writes the updated content back to the same file.
+    Searches the content for the values in the replacements dictionary
+    and replaces them with their corresponding keys.
     """
-    try:
-        # Read the content of the file
-        with open(mod_file, 'r') as file:
-            content = file.read()
-        
-        # Replace Markdown links with just the link name
-        updated_content = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', content)
-        
-        # Write the updated content back to the file
-        with open(mod_file, 'w') as file:
-            file.write(updated_content)
-        
-        print(f"Markdown links replaced in file: {mod_file}")
-    except Exception as e:
-        print(f"Error while processing file '{mod_file}': {e}", file=sys.stderr)
-        sys.exit(1)
+    for key, value in replacements.items():
+        # Use re.sub for case-insensitive replacement of values with keys
+        content = re.sub(re.escape(value), key, content, flags=re.IGNORECASE)
+    return content
 
-def apply_replacements(log_file, replacements) -> str:
-    # Generate the output file name by prefixing "mod" to the log file name
-    output_file = f"{os.path.splitext(log_file)[0]}(mod){os.path.splitext(log_file)[1]}"
+def remove_stuff(content) -> str:
+    """
+    Replaces all Markdown links of the format [linkname](URL) found in the content
+    with just the linkname, and replace URLs with a dummy URL then returns the updated content
+    """
     
-    # Read the log file and apply replacements
-    try:
-        with open(log_file, 'r') as file:
-            log_content = file.read()
-        
-        for key, value in replacements.items():
-            log_content = log_content.replace(key, value)
-        
-        with open(output_file, 'w') as file:
-            file.write(log_content)
-        
-        print(f"Replacements applied and saved to new log file: {output_file}")
-        return output_file
+    # Replace Markdown links with just the link name
+    content = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', content)
+
+    # Replace URLs with a dummy URL
+    content = re.sub(r'http[s]?://[^\s]+', r'http://localhost/redacted', content)
     
-    except Exception as e:
-        print(f"Error while applying replacements: {e}", file=sys.stderr)
-        sys.exit(1)
+    return content
+
+def write_outfile(infile: str, content: str) -> None:
+    # Name the outfile base on infile
+    # For example, if infile = /path/foo.md then the outfile will be /path/foo(redacted).md
+    output_file = f"{os.path.splitext(infile)[0]}(redacted){os.path.splitext(infile)[1]}"
+
+    
+    with open(output_file, 'w') as file:
+        file.write(content)
+    
+def apply_replacements(infile: str, replacements: dict) -> str:
+    """"
+    Read input file and replace each key in replacements with its corresponding value, then return the text"
+    """
+    with open(infile, 'r') as file:
+        detail_content = file.read()
+    
+    for key, value in replacements.items():
+        # Use re.sub for case-insensitive replacement
+        detail_content = re.sub(re.escape(key), value, detail_content, flags=re.IGNORECASE)
+
+    return detail_content
+
 
 def main():
     parser = argparse.ArgumentParser(description="Process detail logs to generate summary report.")
     parser.add_argument(
+        'action', 
+        choices=['redact', 'unredact'], 
+        help="Specify the action to perform: 'redact' or 'unredact'."
+    )
+    parser.add_argument(
         '-s', '--samples', 
         action='append', 
-        required=True, 
+        required=False, 
         help="Specify a sample report file. Use multiple -s flags for multiple files."
     )
     parser.add_argument(
-        '-l', '--log', 
-        required=True, 
-        help="File containing the raw daily activity log"
+        '-i', '--infile', 
+        required=False, 
+        help="Input file containing the raw daily activity content"
     )
     parser.add_argument(
         '-r', '--replacements', 
-        required=True, 
+        required=False, 
         help="Path to a YAML file containing search/replace values to be applied to the activity log file."
     )
-    
+    parser.add_argument(
+        '--target-report-redacted', 
+        required=False, 
+        help="Path to the target report file that has been redacted."
+    )
     args = parser.parse_args()
     
     # Check if all sample files exist
-    for sample_file in args.samples:
-        if not os.path.isfile(sample_file):
-            print(f"Error: Sample file '{sample_file}' does not exist.", file=sys.stderr)
+    if args.samples:
+        for sample_file in args.samples:
+            if not os.path.isfile(sample_file):
+                print(f"Error: Sample file '{sample_file}' does not exist.", file=sys.stderr)
+                sys.exit(1)
+    
+    # Check if the infile exists
+    if args.infile:
+        if not os.path.isfile(args.infile):
+            print(f"Error: Log file '{args.infile}' does not exist.", file=sys.stderr)
             sys.exit(1)
     
-    # Check if the log file exists
-    if not os.path.isfile(args.log):
-        print(f"Error: Log file '{args.log}' does not exist.", file=sys.stderr)
-        sys.exit(1)
-    
     # Check if the replacements file exists and load it
-    if not os.path.isfile(args.replacements):
-        print(f"Error: replacement file '{args.replacements}' does not exist.", file=sys.stderr)
-        sys.exit(1)
-    
-    try:
-        with open(args.replacements, 'r') as replacements_file:
-            search_n_replace_dict = yaml.safe_load(replacements_file)
-            if not isinstance(search_n_replace_dict, dict):
-                print(f"Error: replacements file '{args.replacements}' must contain a single dictionary.", file=sys.stderr)
-                sys.exit(1)
-    except yaml.YAMLError as e:
-        print(f"Error: Failed to parse replacements file '{args.replacements}': {e}", file=sys.stderr)
-        sys.exit(1)
-    
-    print("Sample report files:", args.samples)
-    print("Daily activity log file:", args.log)
-    print("Search and replace values from replacements file:", search_n_replace_dict)
-    
-    # Apply replacements to the log file and save to a new file
-    logs_modified = apply_replacements(args.log, search_n_replace_dict)
+    search_n_replace_dict = {}
+    if args.replacements:
+        if not os.path.isfile(args.replacements):
+            print(f"Error: replacement file '{args.replacements}' does not exist.", file=sys.stderr)
+            sys.exit(1)
+        try:
+            with open(args.replacements, 'r') as replacements_file:
+                search_n_replace_dict = yaml.safe_load(replacements_file)
+                if not isinstance(search_n_replace_dict, dict):
+                    print(f"Error: replacements file '{args.replacements}' must contain a single dictionary.", file=sys.stderr)
+                    sys.exit(1)
+        except yaml.YAMLError as e:
+            print(f"Error: Failed to parse replacements file '{args.replacements}': {e}", file=sys.stderr)
+            sys.exit(1)
 
-    # Remove links 
-    remove_markdown_links(logs_modified)
+    # Check if the target report file exists
+    if args.target_report_redacted:
+        if not os.path.isfile(args.target_report_redacted):
+            print(f"Error: Target report file '{args.target_report_redacted}' does not exist.", file=sys.stderr)
+            sys.exit(1)
+
+    # Perform the specified action
+    if args.action == 'redact':
+        if not args.infile or not args.replacements:
+            print("Error: Both --infile and --replacements are required for the 'redact' action.", file=sys.stderr)
+            sys.exit(1)
+        
+        # Apply replacements to the infile and save to a new file
+        content = apply_replacements(args.infile, search_n_replace_dict)
+
+        # Remove links and stuff
+        content = remove_stuff(content)
+
+        # Write output file
+        write_outfile(args.infile, content)
+
+    elif args.action == 'unredact':
+        if not args.target_report_redacted or not args.replacements:
+            print("Error: Both --target-report-redacted and --replacements are required for the 'unredact' action.", file=sys.stderr)
+            sys.exit(1)
+        
+        # Read the target report redacted file
+        with open(args.target_report_redacted, 'r') as file:
+            redacted_content = file.read()
+        
+        # Perform unredaction
+        unredacted_content = unredact(redacted_content, search_n_replace_dict)
+        
+        # Generate the output file name by replacing "redacted" with "unredacted"
+        output_file = args.target_report_redacted.replace("(redacted)", "(unredacted)")
+        
+        # Write the unredacted content to the new file
+        with open(output_file, 'w') as file:
+            file.write(unredacted_content)
+        
+        print(f"Unredacted content written to: {output_file}")
+        
+    print("Done.")
 
 if __name__ == '__main__':
     main()
