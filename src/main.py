@@ -75,7 +75,7 @@ def main():
         help="Path to a YAML file containing search/replace values to be applied to the activity log file."
     )
     parser.add_argument(
-        '--target-report-redacted', 
+        '--msr_redacted', 
         required=False, 
         help="Path to the target report file that has been redacted."
     )
@@ -111,9 +111,9 @@ def main():
             sys.exit(1)
 
     # Check if the target report file exists
-    if args.target_report_redacted:
-        if not os.path.isfile(args.target_report_redacted):
-            print(f"Error: Target report file '{args.target_report_redacted}' does not exist.", file=sys.stderr)
+    if args.msr_redacted:
+        if not os.path.isfile(args.msr_redacted):
+            print(f"Error: Target report file '{args.msr_redacted}' does not exist.", file=sys.stderr)
             sys.exit(1)
 
     # Perform the specified action
@@ -132,19 +132,19 @@ def main():
         write_outfile(args.infile, content)
 
     elif args.action == 'unredact':
-        if not args.target_report_redacted or not args.replacements:
-            print("Error: Both --target-report-redacted and --replacements are required for the 'unredact' action.", file=sys.stderr)
+        if not args.msr_redacted or not args.replacements:
+            print("Error: Both --msr_redacted and --replacements are required for the 'unredact' action.", file=sys.stderr)
             sys.exit(1)
         
         # Read the target report redacted file
-        with open(args.target_report_redacted, 'r') as file:
+        with open(args.msr_redacted, 'r') as file:
             redacted_content = file.read()
         
         # Perform unredaction
         unredacted_content = unredact(redacted_content, search_n_replace_dict)
         
         # Generate the output file name by replacing "redacted" with "unredacted"
-        output_file = args.target_report_redacted.replace("(redacted)", "(unredacted)")
+        output_file = args.msr_redacted.replace("(redacted)", "(unredacted)")
         
         # Write the unredacted content to the new file
         with open(output_file, 'w') as file:

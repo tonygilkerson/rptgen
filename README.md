@@ -64,17 +64,38 @@ rptgen
 ### run
 
 ```sh
+source .venv/bin/activate
+
+# Get daily info something like
+$ scp tgilkerson@udev:/home/tgilkerson/gitlab-rs-glu/tony.gilkerson/notebook/reporting/msr/2025-04/thedaily04.md ./.temp/rptwrk04/
+
 # Redact
-python3 src/main.py redact redact \
-  -i .temp/rptwrk/thedaily02.md \
+python3 src/main.py redact \
+  -i .temp/rptwrk04/thedaily04.md \
   -r .temp/keep/replacements.yaml 
   
 
-# go to `temp/rpt-scratch` and create the generated-report(redacted).md
+# Generate report in a scratch workspace
+```sh
+cp .temp/rptwrk04/thedaily04\(redacted\).md  ~/temp/rpt-scratch
+# open workspace and follow instruction in the readme
+code ~/temp/rpt-scratch
 
-
+# Over in the scratch work space the msr(redacted).md was created and copied back into this project
+# i.e. .temp/rptwrk04/msr(redacted).md
+#
+# Now back in this project, unredact to create msr(unredacted).md
+#
+cp ~/temp/rpt-scratch/msr\(redacted\).md .temp/rptwrk04/
 python src/main.py  unredact \
-  --target-report-redacted .temp/rptwrk/target-report\(redacted\).md \
+  --msr_redacted .temp/rptwrk04/msr\(redacted\).md \
   -r .temp/keep/replacements.yaml 
   
+# Generate a pdf
+command-shif-p -> Markdown: Convert Document
+
+# send it over
+scp ./.temp/rptwrk04/msr\(unredacted\).md tgilkerson@udev:/home/tgilkerson/gitlab-rs-glu/tony.gilkerson/notebook/reporting/msr/2025-04 
+
+
 ```
